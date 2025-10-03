@@ -1,0 +1,124 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract JeuDevinette {
+    
+    struct Partie {
+        uint256 nombreSecret;
+        uint256 nombreTentatives;
+        bool partieTerminee;
+        bool existe;
+    }
+    
+    // Chaque joueur a sa propre partie
+    mapping(address => Partie) public parties;
+    
+    // Statistiques globales
+    mapping(address => uint256) public victoires;
+    mapping(address => uint256) public totalTentatives;
+    
+    // Événements
+    event NouvellePartie(address indexed joueur, uint256 timestamp);
+    event Tentative(address indexed joueur, uint256 nombrePropose, string resultat, uint256 nombreTentatives);
+    event Victoire(address indexed joueur, uint256 nombreTentatives, uint256 nombreSecret);
+    
+    // Démarrer une nouvelle partie
+    function nouvellePartie() public {
+        require(!parties[msg.sender].existe || parties[msg.sender].partieTerminee, 
+                "Vous avez deja une partie en cours");
+        
+        // Génération d'un nombre pseudo-aléatoire entre 1 et 10
+        uint256 nombreAleatoire = (uint256(keccak256(abi.encodePacked(
+            block.timestamp,
+            block.prevrandao,
+            msg.sender,
+            block.number
+        ))) % 10) + 1;
+        
+        parties[msg.sender] = Partie({
+            nombreSecret: nombreAleatoire,
+            nombreTentatives: 0,
+            partieTerminee: false,
+            existe: true
+        });
+        
+        emit NouvellePartie(msg.sender, block.timestamp);
+    }
+    
+    // Proposer un nombre
+    function deviner(uint256 _nombre) public returns (string memory) {
+        require(parties[msg.sender].existe, "Vous devez d'abord demarrer une partie");
+        require(!parties[msg.sender].partieTerminee, "Votre partie est terminee, demarrez une nouvelle partie");
+        require(_nombre >= 1 && _nombre <= 10, "Le nombre doit etre entre 1 et 10");
+        
+        Partie storage partie = parties[msg.sender];
+        partie.nombreTentatives++;
+        
+        string memory resultat;
+        
+        if (_nombre == partie.nombreSecret) {
+            // Victoire !
+            resultat = "GAGNE ! Felicitations !";
+            partie.partieTerminee = true;
+            victoires[msg.sender]++;
+            totalTentatives[msg.sender] += partie.nombreTentatives;
+            
+            emit Victoire(msg.sender, partie.nombreTentatives, partie.nombreSecret);
+        } else if (_nombre < partie.nombreSecret) {
+            // Trop bas
+            resultat = "PLUS HAUT";
+        } else {
+            // Trop haut
+            resultat = "PLUS BAS";
+        }
+        
+        emit Tentative(msg.sender, _nombre, resultat, partie.nombreTentatives);
+        
+        return resultat;
+    }
+    
+    // Abandonner la partie en cours
+    function abandonner() public returns (uint256) {
+        require(parties[msg.sender].existe, "Vous n'avez pas de partie en cours");
+        require(!parties[msg.sender].partieTerminee, "Votre partie est deja terminee");
+        
+        uint256 nombreSecret = parties[msg.sender].nombreSecret;
+        parties[msg.sender].partieTerminee = true;
+        
+        return nombreSecret;
+    }
+    
+    // Obtenir les informations de la partie en cours
+    function obtenirInfosPartie() public view returns (
+        uint256 nombreTentatives,
+        bool partieTerminee,
+        bool partieExiste
+    ) {
+        Partie memory partie = parties[msg.sender];
+        return (partie.nombreTentatives, partie.partieTerminee, partie.existe);
+    }
+    
+    // Obtenir les statistiques du joueur
+    function obtenirStatistiques(address _joueur) public view returns (
+        uint256 nombreVictoires,
+        uint256 totalDesTentatives,
+        uint256 moyenneTentatives
+    ) {
+        uint256 nbVictoires = victoires[_joueur];
+        uint256 total = totalTentatives[_joueur];
+        uint256 moyenne = nbVictoires > 0 ? total / nbVictoires : 0;
+        
+        return (nbVictoires, total, moyenne);
+    }
+    
+    // Vérifier si le joueur a une partie en cours
+    function aPartieEnCours() public view returns (bool) {
+        return parties[msg.sender].existe && !parties[msg.sender].partieTerminee;
+    }
+    
+    // Obtenir le nombre de tentatives de la partie actuelle
+    function obtenirNombreTentatives() public view returns (uint256) {
+        require(parties[msg.sender].existe, "Vous n'avez pas de partie");
+        return parties[msg.sender].nombreTentatives;
+    }
+}
