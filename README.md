@@ -1,7 +1,6 @@
 # Celo---Devinette-nombre
 
 
-
 Fonctionnalités principales :
 Démarrer une partie :
 
