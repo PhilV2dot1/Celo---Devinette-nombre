@@ -1,6 +1,7 @@
 # Celo---Devinette-nombre
 
 Contrat sur Celo: 0xBE0D2C3455848b0a475104fC285bC8239814E5AF
+Contrat sur Base : 0x8f4385083ed5D64984ac8211B15a9DE7c98a8e7B
 
 Fonctionnalités principales :
 Démarrer une partie :
